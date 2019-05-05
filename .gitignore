@@ -1,5 +1,6 @@
 # Binaries for programs and plugins
 *.exe
+bin/*
 *.exe~
 *.dll
 *.so
@@ -12,3 +13,9 @@
 *.out
 
 *.notes.*
+*.log
+
+*.log
+
+config.json
+audio-helper-telegram-bot-database
