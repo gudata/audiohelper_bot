@@ -1,0 +1,7 @@
+{
+  "secret": "d58d5bc45a072437bdcde5606cacb1a4",
+  "baseURL": "https://api.vergesense.com/",
+  "outputFolder": "./metadata-export",
+  "verbose": true,
+  "debug": true
+}
