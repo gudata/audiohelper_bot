@@ -1,10 +1,12 @@
 package storage
 
 import (
-	"github.com/google/logger"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
+
+	"github.com/google/logger"
 )
 
 type StorageType struct {
@@ -42,9 +44,10 @@ func (storage *StorageType) DownloadPath(meta map[string]string, formatID string
 func (storage *StorageType) ConvertedDownloadPath(filePath string) string {
 	folder := filepath.Dir(filePath)
 	filename := filepath.Base(filePath)
-	// extension := filepath.Ext(filename)
+	extension := filepath.Ext(filename)
+	cleanedName := strings.TrimSuffix(filename, extension)
 
-	return filepath.Join(folder, "aac-" + filename)
+	return filepath.Join(folder, cleanedName+`.mp3`)
 }
 
 func (storage *StorageType) EnsureFolder(filepath string) bool {

@@ -2,16 +2,16 @@ package youtube
 
 import (
 	"encoding/json"
-	"github.com/google/logger"
 	"errors"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
-	"gopkg.in/alessio/shellescape.v1"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
+
+	"github.com/google/logger"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // https://youtu.be/2O_r-d-HrjA
@@ -37,7 +37,6 @@ func (youtube *YoutubeType) SetStorage(db *leveldb.DB) {
 	youtube.db = db
 }
 
-
 func (youtube *YoutubeType) Detect() bool {
 	matched := validMovie.MatchString(youtube.urlString)
 	return matched
@@ -47,7 +46,6 @@ func (youtube *YoutubeType) Detect() bool {
 // write as it downloads and not load the whole file into memory.
 func (youtube *YoutubeType) Download(filepath, url string) error {
 
-	// Get the data
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -86,22 +84,27 @@ func (youtube *YoutubeType) getAudioMeta() (youtubeMetadataType, error) {
 		fmt.Println("error:", err)
 	}
 
+	// fmt.Println(youtubeMetadata.CreatedAt, time.Now())
+	// https://blog.charmes.net/post/json-dates-go/
+	// youtubeMetadata.CreatedAt = time.Now()
 	youtube.db.Put([]byte(youtube.urlString), []byte(output), nil)
 
 	return youtubeMetadata, nil
 }
 
-func (youtube *YoutubeType) ConvertToAudio(filePath, convertedFilePath string)  {
-	command := exec.Command("/usr/bin/ffmpeg", `-i`, shellescape.Quote(filePath), `-c:a`, `mp3`, shellescape.Quote(convertedFilePath))
-	println("/usr/bin/ffmpeg", `-i`, shellescape.Quote(filePath), `-c:a`, `mp3`, shellescape.Quote(convertedFilePath))
-	output, err := command.Output()
-	println(output)
+func (youtube *YoutubeType) ConvertToAudio(filePath, convertedFilePath string) {
+	logger.Info("Converting to -> ", convertedFilePath)
+	ffmpeg := `/usr/bin/ffmpeg`
+	logger.Info(ffmpeg, `-y`, `-i`, filePath, `-sn`, `-vn`, `-c:a`, `mp3`, convertedFilePath)
+	command := exec.Command(ffmpeg, `-y`, `-i`, filePath, `-sn`, `-vn`, `-c:a`, `mp3`, convertedFilePath) //shellescape.Quote(
+
+	output, err := command.CombinedOutput()
+	logger.Info("Output", string(output))
 
 	if err != nil {
 		logger.Error(err)
 	}
 }
-
 
 func (youtube *YoutubeType) Formats() map[string]string {
 	formats := make(map[string]string)
