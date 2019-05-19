@@ -16,7 +16,6 @@ import (
   "github.com/gudata/audiohelper_bot/packages/youtube"
   "github.com/syndtr/goleveldb/leveldb"
   "github.com/syndtr/goleveldb/leveldb/errors"
-  "gopkg.in/alessio/shellescape.v1"
 )
 
 // Pair is a data structure to hold a key/value pair.
@@ -101,7 +100,7 @@ func sendDownloadMessage(bot *tgbotapi.BotAPI, chatID int64, videoURL, formatID 
     bot.Send(msg)
   }
 
-  audioMessage := tgbotapi.NewAudioUpload(chatID, shellescape.Quote(convertedFilePath)) // or NewAudioShare(chatID int64, fileID string)
+  audioMessage := tgbotapi.NewAudioUpload(chatID, filePath) // or NewAudioShare(chatID int64, fileID string)
 
   if duration, err := strconv.Atoi(meta["duration"]); err == nil {
     audioMessage.Duration = duration
@@ -149,7 +148,7 @@ func main() {
     log.Panic(err)
   }
 
-  bot.Debug = true
+  bot.Debug = false
 
   log.Printf("Authorized on account %s", bot.Self.UserName)
 
@@ -183,14 +182,19 @@ func main() {
       streamURL.Path = "/stream"
       values := url.Values{}
       values.Add("url", audioURL)
+      streamURL.RawQuery = values.Encode()
 
       downloadURL, _ := url.Parse("vlc-x-callback://x-callback-url/download")
       downloadURL.Path = "/download"
       values = url.Values{}
       values.Add("url", audioURL)
       values.Add("filename", meta["filename"])
+      downloadURL.RawQuery = values.Encode()
 
-      msg := tgbotapi.NewMessage(oldMessage.Chat.ID, fmt.Sprintf("Psst - [The URL](%s) if you want to [Download](%s) or [Stream](%s) in VLC", audioURL, streamURL.String(), downloadURL.String()))
+      messageWithLinks := fmt.Sprintf("Psst - [The URL](%s) if you want to [Download](%s) or [Stream](%s) in VLC", audioURL, streamURL.String(), downloadURL.String())
+
+      msg := tgbotapi.NewMessage(oldMessage.Chat.ID, messageWithLinks)
+
       msg.ReplyToMessageID = oldMessage.MessageID
       msg.ParseMode = "markdown"
       msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
