@@ -4,9 +4,9 @@ type VideoUrls map[string]MetadataType
 
 type FormatType struct {
 	Format    string
-	Url       string
+	URL       string
 	filesize  int
-	format_id string
+	formatID  string
 }
 
 // https://github.com/syndtr/goleveldb

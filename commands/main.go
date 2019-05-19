@@ -1,28 +1,31 @@
 package main
 
 import (
-	"fmt"
-	"github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/google/logger"
-	"github.com/gudata/audiohelper_bot/packages/config"
-	"github.com/gudata/audiohelper_bot/packages/controller"
-	s "github.com/gudata/audiohelper_bot/packages/storage"
-	"github.com/gudata/audiohelper_bot/packages/youtube"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/errors"
-	"log"
-	"net/url"
-	"os"
-	"sort"
+  "fmt"
+  "log"
+  "net/url"
+  "os"
+  "sort"
+  "strconv"
+
+  tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
+  "github.com/google/logger"
+  "github.com/gudata/audiohelper_bot/packages/config"
+  "github.com/gudata/audiohelper_bot/packages/controller"
+  s "github.com/gudata/audiohelper_bot/packages/storage"
+  "github.com/gudata/audiohelper_bot/packages/youtube"
+  "github.com/syndtr/goleveldb/leveldb"
+  "github.com/syndtr/goleveldb/leveldb/errors"
+  "gopkg.in/alessio/shellescape.v1"
 )
 
-// A data structure to hold a key/value pair.
+// Pair is a data structure to hold a key/value pair.
 type Pair struct {
-	Key   string
-	Value string
+  Key   string
+  Value string
 }
 
-// A slice of Pairs that implements sort.Interface to sort by Value.
+// PairList is a slice of Pairs that implements sort.Interface to sort by Value.
 type PairList []Pair
 
 func (p PairList) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
@@ -31,66 +34,87 @@ func (p PairList) Less(i, j int) bool { return p[i].Value < p[j].Value }
 
 // A function to turn a map into a PairList, then sort and return it.
 func sortMapByValue(m map[string]string) PairList {
-	println(len(m))
+  println(len(m))
 
-	p := make(PairList, len(m))
-	i := 0
-	for k, v := range m {
-		p[i] = Pair{k, v}
-		i++
-	}
-	sort.Sort(sort.Reverse(p))
-	return p
+  p := make(PairList, len(m))
+  i := 0
+  for k, v := range m {
+    p[i] = Pair{k, v}
+    i++
+  }
+  sort.Sort(sort.Reverse(p))
+  return p
 }
 
-func sendDownloadOptions(bot *tgbotapi.BotAPI, update tgbotapi.Update, videoUrl string) {
-	formats := controller.NewController(db).Formats(videoUrl)
+func sendDownloadOptions(bot *tgbotapi.BotAPI, update tgbotapi.Update, videoURL string) {
+  formats := controller.NewController(db).Formats(videoURL)
 
-	sortedFormats := sortMapByValue(formats)
+  sortedFormats := sortMapByValue(formats)
 
-	chatID := update.Message.Chat.ID
+  chatID := update.Message.Chat.ID
 
-	var row []tgbotapi.InlineKeyboardButton
-	var rows [][]tgbotapi.InlineKeyboardButton
+  var row []tgbotapi.InlineKeyboardButton
+  var rows [][]tgbotapi.InlineKeyboardButton
 
-	for _, pair := range sortedFormats {
-		label := pair.Value
-		key := pair.Key
+  for _, pair := range sortedFormats {
+    label := pair.Value
+    key := pair.Key
 
-		row = make([]tgbotapi.InlineKeyboardButton, 1)
-		row[0] = tgbotapi.NewInlineKeyboardButtonData(label, key)
-		rows = append(rows, row)
-	}
+    row = make([]tgbotapi.InlineKeyboardButton, 1)
+    row[0] = tgbotapi.NewInlineKeyboardButtonData(label, key)
+    rows = append(rows, row)
+  }
 
-	msg := tgbotapi.NewMessage(chatID, "Choose format")
-	msg.DisableWebPagePreview = true
-	msg.ReplyToMessageID = update.Message.MessageID
-	msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: rows}
-	bot.Send(msg)
+  msg := tgbotapi.NewMessage(chatID, "Choose format")
+  msg.DisableWebPagePreview = true
+  msg.ReplyToMessageID = update.Message.MessageID
+  msg.ReplyMarkup = tgbotapi.InlineKeyboardMarkup{InlineKeyboard: rows}
+  bot.Send(msg)
 }
 
-func sendDownloadMessage(bot *tgbotapi.BotAPI, chatID int64, videoUrl, formatID string) {
-	controller := controller.NewController(db)
-	meta, _ := controller.GetMeta(videoUrl)
+func sendDownloadMessage(bot *tgbotapi.BotAPI, chatID int64, videoURL, formatID string) {
+  controller := controller.NewController(db)
+  meta, _ := controller.GetMeta(videoURL)
 
-	audioUrl, _ := controller.GetAudioUrl(videoUrl, formatID)
+  audioURL, _ := controller.GetAudioURL(videoURL, formatID)
 
-	youtube := youtube.NewYoutube(videoUrl, db)
-	file_path := storage.DownloadPath(meta, formatID)
+  youtube := youtube.NewYoutube(videoURL)
+  youtube.SetStorage(db)
+  filePath := storage.DownloadPath(meta, formatID)
 
-	storage.EnsureFolder(file_path)
+  storage.EnsureFolder(filePath)
 
-	logger.Info(file_path)
+  convertedFilePath := storage.ConvertedDownloadPath(filePath)
 
-	if _, err := os.Stat(file_path); os.IsNotExist(err) {
-		youtube.Download(file_path, audioUrl)
-		msg := tgbotapi.NewMessage(chatID, "File downloaded - now telegraming it, please wait...")
-		msg.DisableWebPagePreview = true
-		bot.Send(msg)
-	}
+  logger.Info(convertedFilePath)
 
-	audioMessage := tgbotapi.NewAudioUpload(chatID, file_path) // or NewAudioShare(chatID int64, fileID string)
-	bot.Send(audioMessage)
+  if _, err := os.Stat(filePath); os.IsNotExist(err) {
+    youtube.Download(filePath, audioURL)
+
+    msg := tgbotapi.NewMessage(chatID, "File downloaded - now converting it music format, please wait...")
+    msg.DisableWebPagePreview = true
+    bot.Send(msg)
+
+    youtube.ConvertToAudio(filePath, convertedFilePath)
+    msg = tgbotapi.NewMessage(chatID, "File donverted - now telegraming it, please wait...")
+    msg.DisableWebPagePreview = true
+    bot.Send(msg)
+  }
+
+  audioMessage := tgbotapi.NewAudioUpload(chatID, shellescape.Quote(convertedFilePath)) // or NewAudioShare(chatID int64, fileID string)
+
+  if duration, err := strconv.Atoi(meta["duration"]); err == nil {
+    audioMessage.Duration = duration
+  }
+
+  audioMessage.Title = meta["title"]
+  audioMessage.Performer = meta["artist"]
+  // msg.MimeType = "audio/mpeg"
+  // msg.FileSize = 688
+  _, err := bot.Send(audioMessage)
+  if err != nil {
+    logger.Error(err)
+  }
 }
 
 var db *leveldb.DB
@@ -98,121 +122,121 @@ var err error
 var storage *s.StorageType
 
 func main() {
-	// https://www.progville.com/go/bolt-embedded-db-golang/
-	dbFile := "audio-helper-telegram-bot-database"
-	db, err = leveldb.OpenFile(dbFile, nil)
-	if errors.IsCorrupted(err) {
-		fmt.Println("ErrCorrupted", err)
-		leveldb.RecoverFile(dbFile, nil)
-		panic("Database recovered. Restart the application.")
-	}
+  // https://www.progville.com/go/bolt-embedded-db-golang/
+  dbFile := "audio-helper-telegram-bot-database"
+  db, err = leveldb.OpenFile(dbFile, nil)
+  if errors.IsCorrupted(err) {
+    fmt.Println("ErrCorrupted", err)
+    leveldb.RecoverFile(dbFile, nil)
+    panic("Database recovered. Restart the application.")
+  }
 
-	if err != nil {
-		panic(err)
-	}
+  if err != nil {
+    panic(err)
+  }
 
-	defer db.Close()
+  defer db.Close()
 
-	config := config.Config()
-	defer config.InitLogging().Close()
-	logger.Info("audio-helper Start")
+  config := config.Config()
+  defer config.InitLogging().Close()
+  logger.Info("audio-helper Start")
 
-	storage = s.NewStorage(config.OutputFolder, config.Debug)
-	storage.CreateOutputFolder()
+  storage = s.NewStorage(config.OutputFolder, config.Debug)
+  storage.CreateOutputFolder()
 
-	bot, err := tgbotapi.NewBotAPI(config.Secret)
-	if err != nil {
-		log.Panic(err)
-	}
+  bot, err := tgbotapi.NewBotAPI(config.Secret)
+  if err != nil {
+    log.Panic(err)
+  }
 
-	bot.Debug = true
+  bot.Debug = true
 
-	log.Printf("Authorized on account %s", bot.Self.UserName)
+  log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	u := tgbotapi.NewUpdate(0)
-	u.Timeout = 120
+  u := tgbotapi.NewUpdate(0)
+  u.Timeout = 120
 
-	updates, err := bot.GetUpdatesChan(u)
+  updates, _ := bot.GetUpdatesChan(u)
 
-	for update := range updates {
+  for update := range updates {
 
-		if update.CallbackQuery != nil {
-			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, "Download started..."))
+    if update.CallbackQuery != nil {
+      bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, "Download started..."))
 
-			oldMessage := update.CallbackQuery.Message.ReplyToMessage
-			videoUrl := oldMessage.Text
-			formatID := update.CallbackQuery.Data
+      oldMessage := update.CallbackQuery.Message.ReplyToMessage
+      videoURL := oldMessage.Text
+      formatID := update.CallbackQuery.Data
 
-			controller := controller.NewController(db)
-			audioUrl, err := controller.GetAudioUrl(videoUrl, formatID)
-			meta, err := controller.GetMeta(videoUrl)
+      controller := controller.NewController(db)
+      audioURL, _ := controller.GetAudioURL(videoURL, formatID)
+      meta, err := controller.GetMeta(videoURL)
 
-			if err != nil {
-				msg := tgbotapi.NewMessage(oldMessage.Chat.ID, "Can't find the audio url for the this video.")
-				msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-				bot.Send(msg)
-				continue
-			}
+      if err != nil {
+        msg := tgbotapi.NewMessage(oldMessage.Chat.ID, "Can't find the audio url for the this video.")
+        msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+        bot.Send(msg)
+        continue
+      }
 
-			// https://wiki.videolan.org/Documentation:IOS/#x-callback-url
-			streamURL, _ := url.Parse("vlc-x-callback://x-callback-url/stream")
-			streamURL.Path = "/stream"
-			values := url.Values{}
-			values.Add("url", audioUrl)
+      // https://wiki.videolan.org/Documentation:IOS/#x-callback-url
+      streamURL, _ := url.Parse("vlc-x-callback://x-callback-url/stream")
+      streamURL.Path = "/stream"
+      values := url.Values{}
+      values.Add("url", audioURL)
 
-			downloadURL, _ := url.Parse("vlc-x-callback://x-callback-url/download")
-			downloadURL.Path = "/download"
-			values = url.Values{}
-			values.Add("url", audioUrl)
-			values.Add("filename", meta["filename"])
+      downloadURL, _ := url.Parse("vlc-x-callback://x-callback-url/download")
+      downloadURL.Path = "/download"
+      values = url.Values{}
+      values.Add("url", audioURL)
+      values.Add("filename", meta["filename"])
 
-			msg := tgbotapi.NewMessage(oldMessage.Chat.ID, fmt.Sprintf("Psst - [The URL](%s) if you want to [Download](%s) or [Stream](%s) in VLC", audioUrl, streamURL.String(), downloadURL.String()))
-			msg.ReplyToMessageID = oldMessage.MessageID
-			msg.ParseMode = "markdown"
-			msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-			bot.Send(msg)
+      msg := tgbotapi.NewMessage(oldMessage.Chat.ID, fmt.Sprintf("Psst - [The URL](%s) if you want to [Download](%s) or [Stream](%s) in VLC", audioURL, streamURL.String(), downloadURL.String()))
+      msg.ReplyToMessageID = oldMessage.MessageID
+      msg.ParseMode = "markdown"
+      msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+      bot.Send(msg)
 
-			go sendDownloadMessage(bot, oldMessage.Chat.ID, videoUrl, formatID)
+      go sendDownloadMessage(bot, oldMessage.Chat.ID, videoURL, formatID)
 
-			continue
-		}
+      continue
+    }
 
-		if update.Message == nil { // ignore any non-Message Updates
-			continue
-		}
+    if update.Message == nil { // ignore any non-Message Updates
+      continue
+    }
 
-		videoUrl := update.Message.Text
-		if youtube := youtube.NewYoutube(videoUrl, db); youtube.Detect() {
-			go sendDownloadOptions(bot, update, videoUrl)
-			continue
-		}
+    videoURL := update.Message.Text
+    if youtube := youtube.NewYoutube(videoURL); youtube.Detect() {
+      go sendDownloadOptions(bot, update, videoURL)
+      continue
+    }
 
-		log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+    log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-		if update.Message.IsCommand() {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
-			switch update.Message.Command() {
-			case "help":
-				msg.Text = "Paste an URL for a youtube video or type /sayhi or /status."
-			case "sayhi":
-				msg.Text = "Hi :)"
-			case "status":
-				msg.Text = "I'm ok."
-			default:
-				msg.Text = "I don't know that command"
-			}
-			bot.Send(msg)
-		} else {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Give me youtube URL!")
-			msg.DisableWebPagePreview = true
-			msg.ReplyToMessageID = update.Message.MessageID
+    if update.Message.IsCommand() {
+      msg := tgbotapi.NewMessage(update.Message.Chat.ID, "")
+      switch update.Message.Command() {
+      case "help":
+        msg.Text = "Paste an URL for a youtube video or type /sayhi or /status."
+      case "sayhi":
+        msg.Text = "Hi :)"
+      case "status":
+        msg.Text = "I'm ok."
+      default:
+        msg.Text = "I don't know that command"
+      }
+      bot.Send(msg)
+    } else {
+      msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Give me youtube URL!")
+      msg.DisableWebPagePreview = true
+      msg.ReplyToMessageID = update.Message.MessageID
 
-			switch update.Message.Text {
-			case "close":
-				msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-			}
+      switch update.Message.Text {
+      case "close":
+        msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+      }
 
-			bot.Send(msg)
-		}
-	}
+      bot.Send(msg)
+    }
+  }
 }

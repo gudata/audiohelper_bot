@@ -39,6 +39,14 @@ func (storage *StorageType) DownloadPath(meta map[string]string, formatID string
 	return filepath.Join(storage.ExportFolder, meta["id"]+"-"+formatID, meta["filename"])
 }
 
+func (storage *StorageType) ConvertedDownloadPath(filePath string) string {
+	folder := filepath.Dir(filePath)
+	filename := filepath.Base(filePath)
+	// extension := filepath.Ext(filename)
+
+	return filepath.Join(folder, "aac-" + filename)
+}
+
 func (storage *StorageType) EnsureFolder(filepath string) bool {
 	pathname := path.Dir(filepath)
 

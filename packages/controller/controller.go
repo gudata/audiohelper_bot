@@ -17,17 +17,20 @@ func NewController(db *leveldb.DB) *ControllerType {
 	return &controller
 }
 
-func (controller *ControllerType) Formats(videoUrl string) map[string]string {
-	youtube := youtube.NewYoutube(videoUrl, controller.db)
+func (controller *ControllerType) Formats(videoURL string) map[string]string {
+	youtube := youtube.NewYoutube(videoURL)
+	youtube.SetStorage(controller.db)
 	return youtube.Formats()
 }
 
-func (controller *ControllerType) GetAudioUrl(videoUrl string, FormatID string) (string, error) {
-	youtube := youtube.NewYoutube(videoUrl, controller.db)
-	return youtube.GetAudioUrl(FormatID)
+func (controller *ControllerType) GetAudioURL(videoURL string, FormatID string) (string, error) {
+	youtube := youtube.NewYoutube(videoURL)
+	youtube.SetStorage(controller.db)
+	return youtube.GetAudioURL(FormatID)
 }
 
-func (controller *ControllerType) GetMeta(videoUrl string) (map[string]string, error) {
-	youtube := youtube.NewYoutube(videoUrl, controller.db)
+func (controller *ControllerType) GetMeta(videoURL string) (map[string]string, error) {
+	youtube := youtube.NewYoutube(videoURL)
+	youtube.SetStorage(controller.db)
 	return youtube.GetMeta()
 }

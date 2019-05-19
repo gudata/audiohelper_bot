@@ -19,3 +19,7 @@ bin/*
 
 config.json
 audio-helper-telegram-bot-database
+
+.golangci-*
+.golangcilint-*
+.gometalinter-*

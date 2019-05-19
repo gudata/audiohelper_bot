@@ -1,6 +1,38 @@
 package youtube
 
+type formatType struct {
+		HTTPHeaders struct {
+			AcceptCharset  string `json:"Accept-Charset"`
+			AcceptLanguage string `json:"Accept-Language"`
+			AcceptEncoding string `json:"Accept-Encoding"`
+			Accept         string `json:"Accept"`
+			UserAgent      string `json:"User-Agent"`
+		} `json:"http_headers"`
+		FormatNote        string  `json:"format_note"`
+		Protocol          string  `json:"protocol"`
+		Format            string  `json:"format"`
+		URL               string  `json:"url"`
+		Vcodec            string  `json:"vcodec"`
+		Tbr               float64 `json:"tbr,omitempty"`
+		Abr               int     `json:"abr,omitempty"`
+		PlayerURL         string  `json:"player_url"`
+		DownloaderOptions struct {
+			HTTPChunkSize int `json:"http_chunk_size"`
+		} `json:"downloader_options,omitempty"`
+		Ext        string `json:"ext"`
+		Filesize   int    `json:"filesize"`
+		FormatID   string `json:"format_id"`
+		Quality    int    `json:"quality"`
+		Acodec     string `json:"acodec"`
+		Container  string `json:"container,omitempty"`
+		Height     int    `json:"height,omitempty"`
+		Width      int    `json:"width,omitempty"`
+		Fps        int    `json:"fps,omitempty"`
+		Resolution string `json:"resolution,omitempty"`
+	}
+
 type youtubeMetadataType struct {
+	Formats      []formatType `json:"formats"`
 	UploadDate         string      `json:"upload_date"`
 	Protocol           string      `json:"protocol"`
 	Extractor          string      `json:"extractor"`
@@ -73,36 +105,6 @@ type youtubeMetadataType struct {
 	IsLive       interface{} `json:"is_live"`
 	EndTime      interface{} `json:"end_time"`
 	WebpageURL   string      `json:"webpage_url"`
-	Formats      []struct {
-		HTTPHeaders struct {
-			AcceptCharset  string `json:"Accept-Charset"`
-			AcceptLanguage string `json:"Accept-Language"`
-			AcceptEncoding string `json:"Accept-Encoding"`
-			Accept         string `json:"Accept"`
-			UserAgent      string `json:"User-Agent"`
-		} `json:"http_headers"`
-		FormatNote        string  `json:"format_note"`
-		Protocol          string  `json:"protocol"`
-		Format            string  `json:"format"`
-		URL               string  `json:"url"`
-		Vcodec            string  `json:"vcodec"`
-		Tbr               float64 `json:"tbr,omitempty"`
-		Abr               int     `json:"abr,omitempty"`
-		PlayerURL         string  `json:"player_url"`
-		DownloaderOptions struct {
-			HTTPChunkSize int `json:"http_chunk_size"`
-		} `json:"downloader_options,omitempty"`
-		Ext        string `json:"ext"`
-		Filesize   int    `json:"filesize"`
-		FormatID   string `json:"format_id"`
-		Quality    int    `json:"quality"`
-		Acodec     string `json:"acodec"`
-		Container  string `json:"container,omitempty"`
-		Height     int    `json:"height,omitempty"`
-		Width      int    `json:"width,omitempty"`
-		Fps        int    `json:"fps,omitempty"`
-		Resolution string `json:"resolution,omitempty"`
-	} `json:"formats"`
 	ChannelURL string `json:"channel_url"`
 	Vcodec     string `json:"vcodec"`
 	AgeLimit   int    `json:"age_limit"`
