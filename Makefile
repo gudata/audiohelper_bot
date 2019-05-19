@@ -29,3 +29,4 @@ install-packages:
 	go get -u golang.org/x/lint/golint
 	go get thub.com/gordonklaus/ineffassign
 	go get golang.org/x/tools/cmd/guru
+
