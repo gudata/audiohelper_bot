@@ -85,9 +85,8 @@ func sendDownloadMessage(bot *tgbotapi.BotAPI, chatID int64, videoURL, formatID 
 
   convertedFilePath := storage.ConvertedDownloadPath(filePath)
 
-  logger.Info(convertedFilePath)
-
   if _, err := os.Stat(filePath); os.IsNotExist(err) {
+    logger.Info("Downloading...", filePath, audioURL)
     youtube.Download(filePath, audioURL)
 
     msg := tgbotapi.NewMessage(chatID, "File downloaded - now converting it music format, please wait...")
@@ -95,12 +94,12 @@ func sendDownloadMessage(bot *tgbotapi.BotAPI, chatID int64, videoURL, formatID 
     bot.Send(msg)
 
     youtube.ConvertToAudio(filePath, convertedFilePath)
-    msg = tgbotapi.NewMessage(chatID, "File donverted - now telegraming it, please wait...")
+    msg = tgbotapi.NewMessage(chatID, "File converted - now telegraming it, please wait...")
     msg.DisableWebPagePreview = true
     bot.Send(msg)
   }
 
-  audioMessage := tgbotapi.NewAudioUpload(chatID, filePath) // or NewAudioShare(chatID int64, fileID string)
+  audioMessage := tgbotapi.NewAudioUpload(chatID, convertedFilePath) // or NewAudioShare(chatID int64, fileID string)
 
   if duration, err := strconv.Atoi(meta["duration"]); err == nil {
     audioMessage.Duration = duration
